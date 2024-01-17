@@ -12,6 +12,14 @@ const FormSchema = z.object({
     status: z.enum(['pending', 'paid'], {invalid_type_error: 'Please select an invoice status.',}),
     date: z.string(),
   });
+  export type State = {
+  errors?: {
+    customerId?: string[];
+    amount?: string[];
+    status?: string[];
+  };
+  message?: string | null;
+};
   const CreateInvoice = FormSchema.omit({ id: true, date: true });
   export async function createInvoice(formData: FormData) {
     const { customerId, amount, status } = CreateInvoice.parse({
@@ -37,7 +45,6 @@ const FormSchema = z.object({
     revalidatePath('/dashboard/invoices');
     redirect('/dashboard/invoices');
   }
-
   const UpdateInvoice = FormSchema.omit({ id: true, date: true });
  
 // ...
@@ -75,11 +82,26 @@ export async function deleteInvoice(id: string) {
     return { message: 'Database Error: Failed to Delete Invoice.' };
   }
 }
-export type State = {
-  errors?: {
-    customerId?: string[];
-    amount?: string[];
-    status?: string[];
-  };
-  message?: string | null;
-};
+import { signIn } from '@/auth';
+import { AuthError } from 'next-auth';
+ 
+// ...
+ 
+export async function authenticate(
+  prevState: string | undefined,
+  formData: FormData,
+) {
+  try {
+    await signIn('credentials', formData);
+  } catch (error) {
+    if (error instanceof AuthError) {
+      switch (error.type) {
+        case 'CredentialsSignin':
+          return 'Invalid credentials.';
+        default:
+          return 'Something went wrong.';
+      }
+    }
+    throw error;
+  }
+}
